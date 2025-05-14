@@ -28,13 +28,14 @@ void Game::run() {
         while (matchFound) {
             matchFound = false;
             for (Bonus& b : activeBonuses) {
-                drawField(); 
-                sf::sleep(sf::milliseconds(300)); 
-                b.apply(grid); 
+                drawField();
+                sf::sleep(sf::milliseconds(300));
+                b.apply(grid);
             }
             activeBonuses.clear();
             drawField();
-            processMatches();
+            processMatches_horizont();
+            processMatches_vertical();
             collapseTiles();
             drawField();
         }
@@ -44,18 +45,26 @@ void Game::run() {
 bool Game::hasMatchAt(int x, int y) {
     int c = grid[y][x].color;
     if (c == -1) return false;
-
-    // Проверка по горизонтали
     int count = 1;
-    for (int i = x - 1; i >= 0 && grid[y][i].color == c; --i) ++count;
-    for (int i = x + 1; i < GRID_SIZE && grid[y][i].color == c; ++i) ++count;
-    if (count >= 3) return true;
-
-    // Проверка по вертикали
+    for (int i = x - 1; i >= 0 && grid[y][i].color == c; --i) {
+        ++count;
+    } 
+    for (int i = x + 1; i < GRID_SIZE && grid[y][i].color == c; ++i) {
+        ++count;
+    }
+    if (count >= MIN_LEN) {
+        return true;
+    }
     count = 1;
-    for (int i = y - 1; i >= 0 && grid[i][x].color == c; --i) ++count;
-    for (int i = y + 1; i < GRID_SIZE && grid[i][x].color == c; ++i) ++count;
-    if (count >= 3) return true;
+    for (int i = y - 1; i >= 0 && grid[i][x].color == c; --i) {
+        ++count;
+    }
+    for (int i = y + 1; i < GRID_SIZE && grid[i][x].color == c; ++i) {
+        ++count;
+    }
+    if (count >= MIN_LEN) {
+        return true;
+    }
 
     return false;
 }
@@ -107,11 +116,11 @@ void Game::drawField() {
             if (grid[i][j].color == -1) continue;
 
             tileSprite.setTexture(tileTextures[grid[i][j].color]);
-            tileSprite.setColor(sf::Color(0, 0, 0, 100)); 
+            tileSprite.setColor(sf::Color(0, 0, 0, 100));
             tileSprite.setPosition(grid[i][j].x + 5, grid[i][j].y - 2);
             app.draw(tileSprite);
 
-            tileSprite.setColor(sf::Color::White); 
+            tileSprite.setColor(sf::Color::White);
             tileSprite.setPosition(grid[i][j].x, grid[i][j].y);
             app.draw(tileSprite);
         }
@@ -125,79 +134,92 @@ void Game::drawField() {
 
     app.display();
 }
-void Game::processMatches() {
-    // Горизонтально
+
+int Game::prosessMatches_row(int color, int& i,int& j) {
+
+    int j_step = 1;
+    if (color == -1) {
+        ++j;
+        return j_step;
+    }
+
+    while (j + j_step < GRID_SIZE && grid[i][j + j_step].color == color) {
+        ++j_step;
+    }
+
+    return j_step;
+}
+
+void Game::SearchBonus(int i,int j, int step) {
+    if (step > MIN_LEN) {
+        if (!grid[i][j].hasBonus) {
+            Bonus b;
+            b.spawn(j, i, grid);
+            activeBonuses.push_back(b);
+        }
+    }
+}
+int Game::prosessMatches_column(int color, int& i, int& j) {
+
+    int step = 1;
+    if (color == -1) {
+        ++i;
+        return step;
+    }
+
+    while (i + step < GRID_SIZE && grid[i+step][j].color == color) {
+        ++step;
+    }
+
+    return step;
+}
+void Game::processMatches_horizont() {
     for (int i = 0; i < GRID_SIZE; ++i) {
         int j = 0;
         while (j < GRID_SIZE - 2) {
-            int c = grid[i][j].color;
-            if (c == -1) {
-                ++j;
-                continue;
-            }
 
-            int length = 1;
-            while (j + length < GRID_SIZE && grid[i][j + length].color == c)
-                ++length;
+            int color = grid[i][j].color;
+             int j_step = prosessMatches_row(color, i, j);
 
-            if (length >= 3) {
+
+            if (j_step >= MIN_LEN) {
                 matchFound = true;
-                for (int k = 0; k < length; ++k)
+                for (int k = 0; k < j_step; ++k) {
                     grid[i][j + k].toRemove = true;
-
-                if (length > 3) {
-                    int bonusPos = j + length / 2;
-                    if (!grid[i][bonusPos].hasBonus) {
-                        Bonus b;
-                        b.spawn(bonusPos, i, grid);
-                        activeBonuses.push_back(b);
-                    }
                 }
-
-                j += length;
+                SearchBonus(i,j,j_step);
             }
-            else {
-                ++j;
-            }
+            j += j_step;
         }
     }
 
-    // Вертикально
+}
+
+void Game::processMatches_vertical(){
     for (int j = 0; j < GRID_SIZE; ++j) {
         int i = 0;
         while (i < GRID_SIZE - 2) {
-            int c = grid[i][j].color;
-            if (c == -1) {
-                ++i;
-                continue;
-            }
 
-            int length = 1;
-            while (i + length < GRID_SIZE && grid[i + length][j].color == c)
-                ++length;
+            int color = grid[i][j].color;
+            int i_step = prosessMatches_column(color, i, j);  
 
-            if (length >= 3) {
+            if (i_step >= MIN_LEN) {
                 matchFound = true;
-                for (int k = 0; k < length; ++k)
+                for (int k = 0; k < i_step; ++k) {
                     grid[i + k][j].toRemove = true;
-
-                if (length > 3) {
-                    int bonusPos = i + length / 2;
-                    if (!grid[bonusPos][j].hasBonus) {
-                        Bonus b;
-                        b.spawn(j, bonusPos, grid);
-                        activeBonuses.push_back(b);
-                    }
                 }
-
-                i += length;
+                SearchBonus(i,j, i_step);
             }
-            else {
-                ++i;
-            }
+            i += i_step;
         }
     }
 
+    
+
+}
+
+
+void Game::collapseTiles() {
     for (std::vector<Tile>& row : grid)
         for (Tile& t : row)
             if (t.toRemove) {
@@ -206,10 +228,6 @@ void Game::processMatches() {
                 t.hasBonus = false;
             }
 
-}
-
-
-void Game::collapseTiles() {
     for (int x = 0; x < GRID_SIZE; ++x) {
         for (int y = GRID_SIZE - 1; y >= 0; --y) {
             if (grid[y][x].color == -1) {
@@ -223,8 +241,10 @@ void Game::collapseTiles() {
         }
 
         for (int y = 0; y < GRID_SIZE; ++y) {
-            if (grid[y][x].color == -1)
+            if (grid[y][x].color == -1) {
                 grid[y][x].generate(x, y);
+            }
+                
         }
     }
 }
