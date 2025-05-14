@@ -11,8 +11,7 @@ constexpr int TILE_WIDTH = 60;
 constexpr int TILE_HEIGHT = 60;
 constexpr float WINDOW_WIDTH = 730;
 constexpr float WINDOW_HEIGHT = 730;
-constexpr int BONUS_RADIUS = 3;
-
+constexpr int MIN_LEN = 3;
 struct Tile {
     int color = -1;
     bool toRemove = false;
@@ -30,7 +29,7 @@ struct Tile {
 
 class Bonus {
 public:
-    int type; 
+    int type;
     int bonusColor;
     int px, py;
     void apply(std::vector<std::vector<Tile>>& grid);
@@ -63,6 +62,10 @@ private:
     void handleInput();
     void drawField();
     bool validSwap(sf::Vector2i a, sf::Vector2i b);
-    void processMatches();
+    void processMatches_vertical();
+    void processMatches_horizont();
+    int prosessMatches_row(int color, int& i, int& j);
+    int prosessMatches_column(int color, int& i, int& j);
+    void SearchBonus(int i, int j, int j_step);
     void collapseTiles();
 };
