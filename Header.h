@@ -23,6 +23,8 @@ constexpr int BONUS_COUNT_TYPES = 5;
 constexpr float BONUS_RADIUS = BALL_RADIUS * 0.25;
 constexpr float START_SPEED = 0.5f;
 
+class Game;
+
 class Block {
 public:
     Block() {};
@@ -31,6 +33,7 @@ public:
     float x_pos, y_pos;
     int type;
     int life;
+    virtual void onHit(Game& game) = 0;
     virtual ~Block() {};
 };
 
@@ -41,6 +44,7 @@ public:
         life = -1; // Неразрушимый
         block.setFillColor(sf::Color::Blue);
     }
+    void onHit(Game& game) override {};
 };
 
 class BlockWithBonus : public Block {
@@ -51,6 +55,7 @@ public:
         life = 1;
         block.setFillColor(sf::Color::Green);
     }
+    void onHit(Game& game) override;
 };
 
 class BlockSpeedUp : public Block {
@@ -61,6 +66,7 @@ public:
         life = 1;
         block.setFillColor(sf::Color::Red);
     }
+    void onHit(Game& game) override;
 };
 
 
@@ -71,6 +77,7 @@ public:
         life = LIFE_BONUS_4;
         block.setFillColor(sf::Color::Yellow);
     }
+    void onHit(Game& game) override;
 };
 
 
@@ -113,7 +120,6 @@ private:
     void gorizont_Touch(float block_top, float gran_bottom, float gran_left_plat, float gran_right_plat);
 };
 
-class Game;
 
 class Bonus {
 public:
@@ -185,7 +191,6 @@ private:
     void createBlocks();
     void createPlatform();
     void IsTouchBallBlock();
-    void Act(Block* b);
     void checkBonusCatch();
     void ActiveBonus(Bonus* bonus);
     void UpdateBlocks();
