@@ -75,6 +75,36 @@ void Game::createBlocks() {
     }
 }
 
+void BlockWithBonus::onHit(Game& game) {
+    life--;
+    game.Score_Win++;
+
+    float bonus_x = x_pos + BLOCK_WIDTH / 2;
+    float bonus_y = y_pos + BLOCK_HEIGHT / 2;
+
+    Bonus* bonus = nullptr;
+    switch (bonusType) {
+    case 1: bonus = new BonusSpeed(bonus_x, bonus_y); break;
+    case 2: bonus = new BonusResizePlatform(bonus_x, bonus_y); break;
+    case 3: bonus = new BonusStick(bonus_x, bonus_y); break;
+    case 4: bonus = new BonusSecondLife(bonus_x, bonus_y); break;
+    case 5: bonus = new BonusRedirect(bonus_x, bonus_y); break;
+    }
+    if (bonus) game.bonuses.push_back(bonus);
+}
+
+void BlockSpeedUp::onHit(Game& game) {
+    life--;
+    game.Score_Win++;
+    game.ball.speed += delta_v;
+    if (game.ball.speed > MAX_SPEED)
+        game.ball.speed = MAX_SPEED;
+}
+
+void BlockWithHealth::onHit(Game& game) {
+    life--;
+    game.Score_Win++;
+}
 
 void Platform::move(float x_cursor) {
     float left = x_pos;
@@ -201,100 +231,45 @@ void Game::IsTouchBallBlock() {
             float blockTop = b->y_pos;
             float blockBottom = b->y_pos + BLOCK_HEIGHT;
 
+            // Проверка пересечения
             if (ballRight > blockLeft && ballLeft < blockRight &&
                 ballBottom > blockTop && ballTop < blockBottom) {
-                if (b->type == 1) {
-                    
-                    // Проверяем, с какой стороны произошло столкновение
-                    float overlapLeft = ballRight - blockLeft;
-                    float overlapRight = blockRight - ballLeft;
-                    float overlapTop = ballBottom - blockTop;
-                    float overlapBottom = blockBottom - ballTop;
 
-                    float minOverlap = std::min({ overlapLeft, overlapRight, overlapTop, overlapBottom });
+                // === 1. Обработка отражения ===
+                float overlapLeft = ballRight - blockLeft;
+                float overlapRight = blockRight - ballLeft;
+                float overlapTop = ballBottom - blockTop;
+                float overlapBottom = blockBottom - ballTop;
 
-                    if (minOverlap == overlapLeft) {
-                        // Мяч слева в блоке — двигаем его влево
-                        ball.x_pos -= overlapLeft;
-                        ball.angle = M_PI - ball.angle;
-                    }
-                    else if (minOverlap == overlapRight) {
-                        ball.x_pos += overlapRight;
-                        ball.angle = M_PI - ball.angle;
-                    }
-                    else if (minOverlap == overlapTop) {
-                        ball.y_pos -= overlapTop;
-                        ball.angle *= -1.0f;
-                    }
-                    else {
-                        ball.y_pos += overlapBottom;
-                        ball.angle *= -1.0f;
-                    }
+                float minOverlap = std::min({ overlapLeft, overlapRight, overlapTop, overlapBottom });
 
-                    ball.ball.setPosition(ball.x_pos, ball.y_pos);
+                if (minOverlap == overlapLeft) {
+                    ball.x_pos -= overlapLeft;
+                    ball.angle = M_PI - ball.angle;
                 }
-                else {
-                    b->life--;
-                    Act(b);
+                else if (minOverlap == overlapRight) {
+                    ball.x_pos += overlapRight;
+                    ball.angle = M_PI - ball.angle;
+                }
+                else if (minOverlap == overlapTop) {
+                    ball.y_pos -= overlapTop;
                     ball.angle *= -1.0f;
                 }
-                return;
+                else {
+                    ball.y_pos += overlapBottom;
+                    ball.angle *= -1.0f;
+                }
+
+                ball.ball.setPosition(ball.x_pos, ball.y_pos);
+
+            
+                b->onHit(*this);
+
+                return; 
             }
         }
     }
 }
-
-void Game::Act(Block* b) {
-    //координаты центра блока
-    float bonus_x = b->x_pos + BLOCK_WIDTH / 2;
-    float bonus_y = b->y_pos + BLOCK_HEIGHT / 2;
-
-    switch (b->type) {
-    case 1:
-        // Неразрушимый блок
-        break;
-
-    case 2: {
-        // Блок с бонусом
-        Score_Win++;
-        b->life--;
-        BlockWithBonus* bb = dynamic_cast<BlockWithBonus*>(b);
-        if (bb) {
-            Bonus* bonus = nullptr;
-            switch (bb->bonusType) {
-            case 1: bonus = new BonusSpeed(bonus_x, bonus_y); break;
-            case 2: bonus = new BonusResizePlatform(bonus_x, bonus_y); break;
-            case 3: bonus = new BonusStick(bonus_x, bonus_y); break;
-            case 4: bonus = new BonusSecondLife(bonus_x, bonus_y); break;
-            case 5: bonus = new BonusRedirect(bonus_x, bonus_y); break;
-            default: break;
-            }
-            if (bonus != nullptr)
-                bonuses.push_back(bonus);
-        }
-        break;
-    }
-    case 3: {
-        // Увеличивает скорость шара, не создаёт бонус
-        Score_Win++;
-        b->life--;
-        BlockSpeedUp* bs = dynamic_cast<BlockSpeedUp*>(b);
-        if (bs) {
-            ball.speed += bs->delta_v;
-            if (ball.speed > MAX_SPEED)
-                ball.speed = MAX_SPEED;
-        }
-        break;
-    }
-    case 4: {
-        // Блок с несколькими жизнями
-        Score_Win++;
-        b->life--;
-        break;
-    }
-    }
-}
-
 
 
 Bonus::Bonus(float x, float y) : x_pos(x), y_pos(y) {
@@ -424,6 +399,8 @@ Game::~Game() {
             delete b;
         }
     }
+    for (Bonus* b : bonuses)
+        delete b;
 }
 
 int main() {
