@@ -53,13 +53,13 @@ void Game::createBlocks() {
                 break;
 
             case 2: { // С бонусом
-                int bonusType = 1 + rand() % BONUS_COUNT_TYPES; // Выбираем тип бонуса для блока
+                int bonusType = 1 + rand() % BONUS_COUNT_TYPES; 
                 block = new BlockWithBonus(i, j, bonusType);
                 break;
             }
 
             case 3: { // Увеличение скорости
-                float delta_v = 0.1f; // можно менять при необходимости
+                float delta_v = 0.1f;
                 block = new BlockSpeedUp(i, j, delta_v);
                 break;
             }
@@ -216,20 +216,17 @@ void Game::IsTouchBallBlock() {
                     if (minOverlap == overlapLeft) {
                         // Мяч слева в блоке — двигаем его влево
                         ball.x_pos -= overlapLeft;
-                        ball.angle = M_PI - ball.angle; // отражение по горизонтали
+                        ball.angle = M_PI - ball.angle;
                     }
                     else if (minOverlap == overlapRight) {
-                        // Мяч справа в блоке — двигаем вправо
                         ball.x_pos += overlapRight;
                         ball.angle = M_PI - ball.angle;
                     }
                     else if (minOverlap == overlapTop) {
-                        // Мяч сверху — двигаем вверх
                         ball.y_pos -= overlapTop;
                         ball.angle *= -1.0f;
                     }
                     else {
-                        // Мяч снизу — двигаем вниз
                         ball.y_pos += overlapBottom;
                         ball.angle *= -1.0f;
                     }
@@ -254,7 +251,7 @@ void Game::Act(Block* b) {
 
     switch (b->type) {
     case 1:
-        // Неразрушимый блок — просто отскок, ничего не делаем
+        // Неразрушимый блок
         break;
 
     case 2: {
