@@ -7,20 +7,21 @@
 #include <cmath>
 #include <iostream>
 
-constexpr int BLOCK_COUNT_WIDTH = 6;
-constexpr int BLOCK_COUNT_HEIGHT = 4;
-constexpr float WINDOW_WIDTH = 730;
+constexpr int BLOCK_COUNT_WIDTH = 10;
+constexpr int BLOCK_COUNT_HEIGHT = 3;
+constexpr float WINDOW_WIDTH = 1030;
 constexpr float WINDOW_HEIGHT = 730;
 constexpr float BLOCK_HEIGHT = 40.0f;
 constexpr float VOZM = M_PI / 180.0;
 constexpr float BALL_RADIUS = 15.0f;
 constexpr float BLOCK_WIDTH = WINDOW_WIDTH / BLOCK_COUNT_WIDTH;
-constexpr float MAX_SPEED = 1.0f;
+constexpr float MAX_SPEED = 1.5f;
 constexpr int LIFE_BONUS_4 = 2;
 constexpr int BLOCK_COUNT_TYPES = 4;
 constexpr int START_ANGLE = 60;
 constexpr int BONUS_COUNT_TYPES = 5;
 constexpr float BONUS_RADIUS = BALL_RADIUS * 0.25;
+constexpr float START_SPEED = 0.5f;
 
 class Block {
 public:
@@ -30,8 +31,48 @@ public:
     float x_pos, y_pos;
     int type;
     int life;
-    ~Block() {};
+    virtual ~Block() {};
 };
+
+class BlockUnbreakable : public Block {
+public:
+    BlockUnbreakable(int i, int j) : Block(i, j) {
+        type = 1;
+        life = -1; // РќРµСЂР°Р·СЂСѓС€РёРјС‹Р№
+        block.setFillColor(sf::Color::Blue);
+    }
+};
+
+class BlockWithBonus : public Block {
+public:
+    int bonusType;
+    BlockWithBonus(int i, int j, int bonus) : Block(i, j), bonusType(bonus) {
+        type = 2;
+        life = 1;
+        block.setFillColor(sf::Color::Green);
+    }
+};
+
+class BlockSpeedUp : public Block {
+public:
+    float delta_v;
+    BlockSpeedUp(int i, int j, float delta) : Block(i, j), delta_v(delta) {
+        type = 3;
+        life = 1;
+        block.setFillColor(sf::Color::Red);
+    }
+};
+
+
+class BlockWithHealth : public Block {
+public:
+    BlockWithHealth(int i, int j) : Block(i, j) {
+        type = 4;
+        life = LIFE_BONUS_4;
+        block.setFillColor(sf::Color::Yellow);
+    }
+};
+
 
 class Platform {
 public:
@@ -39,7 +80,7 @@ public:
     void move(float x_cursor);
     sf::RectangleShape block;
     float x_pos, y_pos;
-    float speed = 0.2f;
+    float speed = START_SPEED;
     float platformWidth;
     ~Platform() {};
 };
@@ -50,13 +91,13 @@ public:
     Ball();
     float x_pos, y_pos;
     float angle;
-    float speed = 0.2f;
+    float speed = START_SPEED;
     bool randomRedirectActive = false;
-    bool isStuckToPlatform = false; //индикатор прилипания
+    bool isStuckToPlatform = false; //РёРЅРґРёРєР°С‚РѕСЂ РїСЂРёР»РёРїР°РЅРёСЏ
     sf::CircleShape ball;
-    sf::Clock randomRedirectClock;//точка отсчёта для смены направления
-    sf::Clock stickClock;      // точка отсчёта времени прилипания
-    sf::Time randomRedirectTime; // Время, когда произойдёт смена направления
+    sf::Clock randomRedirectClock;//С‚РѕС‡РєР° РѕС‚СЃС‡С‘С‚Р° РґР»СЏ СЃРјРµРЅС‹ РЅР°РїСЂР°РІР»РµРЅРёСЏ
+    sf::Clock stickClock;      // С‚РѕС‡РєР° РѕС‚СЃС‡С‘С‚Р° РІСЂРµРјРµРЅРё РїСЂРёР»РёРїР°РЅРёСЏ
+    sf::Time randomRedirectTime; // Р’СЂРµРјСЏ, РєРѕРіРґР° РїСЂРѕРёР·РѕР№РґС‘С‚ СЃРјРµРЅР° РЅР°РїСЂР°РІР»РµРЅРёСЏ
     virtual void move(Platform& plat, int& Score_Fail);
 
     virtual ~Ball() {};
@@ -72,22 +113,59 @@ private:
     void gorizont_Touch(float block_top, float gran_bottom, float gran_left_plat, float gran_right_plat);
 };
 
+class Game;
+
 class Bonus {
 public:
-    Bonus() {};
-    Bonus(int x, int y);
     sf::CircleShape ball;
     float x_pos, y_pos;
-    bool remote;
+    bool remote = false;
     int type;
-    float speed=0.3f;
-    void move();
-    ~Bonus() {};
+    float speed = START_SPEED;
+    Bonus(float x, float y);
+    virtual void apply(Game& game) = 0;
+    virtual void move();
+    virtual ~Bonus() {}
+};
+
+// РЎРєРѕСЂРѕСЃС‚СЊ С€Р°СЂРёРєР°
+class BonusSpeed : public Bonus {
+public:
+    BonusSpeed(float x, float y) : Bonus(x, y) { type = 1; }
+    void apply(Game& game) override;
+};
+
+// РР·РјРµРЅРµРЅРёРµ СЂР°Р·РјРµСЂР° РїР»Р°С‚С„РѕСЂРјС‹
+class BonusResizePlatform : public Bonus {
+public:
+    BonusResizePlatform(float x, float y) : Bonus(x, y) { type = 2; }
+    void apply(Game& game) override;
+};
+
+// РџСЂРёР»РёРїР°РЅРёРµ С€Р°СЂРёРєР°
+class BonusStick : public Bonus {
+public:
+    BonusStick(float x, float y) : Bonus(x, y) { type = 3; }
+    void apply(Game& game) override;
+};
+
+// Р’С‚РѕСЂРѕРµ РґРЅРѕ
+class BonusSecondLife : public Bonus {
+public:
+    BonusSecondLife(float x, float y) : Bonus(x, y) { type = 4; }
+    void apply(Game& game) override;
+};
+
+// РЎР»СѓС‡Р°Р№РЅРѕРµ РёР·РјРµРЅРµРЅРёРµ РЅР°РїСЂР°РІР»РµРЅРёСЏ
+class BonusRedirect : public Bonus {
+public:
+    BonusRedirect(float x, float y) : Bonus(x, y) { type = 5; }
+    void apply(Game& game) override;
 };
 
 
 bool bottomPlatformActive = false;
-sf::Clock bottomClock;//точка отсчёта времени 2-го дна
+sf::Clock bottomClock;//С‚РѕС‡РєР° РѕС‚СЃС‡С‘С‚Р° РІСЂРµРјРµРЅРё 2-РіРѕ РґРЅР°
 const sf::Time bottomDuration = sf::seconds(3);
 
 
@@ -97,19 +175,18 @@ public:
     void run();
     int Score_Fail;
     int Score_Win;
-    ~Game() {};
-private:
-    std::vector<std::vector<Block>> blocks;
-    std::vector<Bonus> bonuses;
     Platform plat;
     Ball ball;
+    std::vector<std::vector<Block*>> blocks;
+    std::vector<Bonus*> bonuses;
+    ~Game();
+private:
     void drawField();
     void createBlocks();
     void createPlatform();
     void IsTouchBallBlock();
-    void Act(Block& b);
+    void Act(Block* b);
     void checkBonusCatch();
-    void ActiveBonus(Bonus& bonus);
+    void ActiveBonus(Bonus* bonus);
+    void UpdateBlocks();
 };
-
-
